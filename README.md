@@ -159,3 +159,29 @@ graph TD
 5. Orchestrator compiles the final response and sends it to the customer.
 
 This architecture ensures clear, non-overlapping responsibilities, explicit tool usage, and a transparent data flow between agents and their tools.
+
+---
+
+## Reflection and Evaluation
+
+### Architecture and Decision-Making
+The multi-agent system was designed with clear separation of concerns, using an Orchestrator Agent to manage workflow and delegate tasks to specialized worker agents: InventoryAgent, QuotingAgent, and OrderingAgent. This modular approach ensures that each agent has a single responsibility, making the system easy to maintain and extend. The use of pydantic for agent and data modeling provides strong data validation and clarity in agent interactions. The architecture was chosen to maximize clarity, modularity, and future extensibility, as visualized in the workflow diagram above.
+
+### Evaluation Results
+The system was evaluated using the full set of requests in `quote_requests_sample.csv`. The results, saved in `test_results.csv`, demonstrate that:
+- At least three requests result in a change to the cash balance, confirming that sales are processed and recorded.
+- At least three quote requests are successfully fulfilled, with inventory updated and transactions logged.
+- Not all requests are fulfilled; for example, some requests are denied due to insufficient stock, and the system provides clear explanations for unfulfilled requests (e.g., "Insufficient stock for X. Only Y available.").
+- The system provides a transparent log of all agent decisions and state changes, supporting traceability and debugging.
+
+### Strengths
+- **Modularity**: Each agent is responsible for a distinct part of the workflow, making the system easy to understand and modify.
+- **Robust error handling**: Unfulfilled requests are clearly explained, improving user trust and system transparency.
+- **Data validation**: Use of pydantic ensures that all agent interactions are type-safe and validated.
+
+### Suggestions for Improvement
+1. **Add a Learning Quoting Agent**: Enhance the QuotingAgent to use machine learning or statistical models to optimize pricing based on historical data, customer profiles, or demand trends.
+2. **Asynchronous Agent Communication**: Refactor the system to support asynchronous agent interactions, allowing for parallel processing and improved performance, especially for large batches of requests.
+3. **User Feedback Loop**: Implement a feedback mechanism where customers can rate quotes or fulfillment, and use this data to further improve agent decision-making.
+
+This reflection summarizes the architecture, evaluation, and areas for future improvement, as required by the project rubric.

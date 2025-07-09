@@ -607,23 +607,17 @@ class AgentResponse(BaseModel):
 
 class InventoryAgent(BaseModel):
     def check_stock(self, item_name, as_of_date):
-        """Uses get_stock_level to check stock for a specific item."""
         stock_info = get_stock_level(item_name, as_of_date)
         return int(stock_info['current_stock'].iloc[0])
     def needs_restock(self, item_name, as_of_date):
-        """Checks if restocking is needed using get_stock_level and min_stock_level."""
         stock = self.check_stock(item_name, as_of_date)
         min_stock = pd.read_sql('SELECT min_stock_level FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
         if not min_stock.empty:
             return stock < int(min_stock['min_stock_level'].iloc[0])
         return False
-    def inventory_snapshot(self, as_of_date):
-        """Uses get_all_inventory to get a snapshot of all inventory as of a date."""
-        return get_all_inventory(as_of_date)
 
 class QuotingAgent(BaseModel):
     def generate_quote(self, request: AgentRequest):
-        """Generates a quote using inventory and applies discounts."""
         item_name = request.item_name
         quantity = request.quantity
         price_row = pd.read_sql('SELECT unit_price FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
@@ -637,13 +631,9 @@ class QuotingAgent(BaseModel):
         if quantity > 500:
             explanation += " Bulk discount applied."
         return total, explanation
-    def quote_history(self, search_terms, limit=5):
-        """Uses search_quote_history to retrieve relevant past quotes."""
-        return search_quote_history(search_terms, limit)
 
 class OrderingAgent(BaseModel):
     def place_order(self, item_name, quantity, order_date):
-        """Places a supplier order and logs it using create_transaction and get_supplier_delivery_date."""
         price_row = pd.read_sql('SELECT unit_price FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
         if price_row.empty:
             return 'Item not found for ordering.'
@@ -658,7 +648,6 @@ class OrchestratorAgent(BaseModel):
     quoting_agent: QuotingAgent = Field(default_factory=QuotingAgent)
     ordering_agent: OrderingAgent = Field(default_factory=OrderingAgent)
     def handle_request(self, request: AgentRequest):
-        """Orchestrates the workflow, delegates to agents, and compiles the response."""
         item_name = request.item_name
         quantity = request.quantity
         as_of_date = request.request_date
@@ -685,12 +674,6 @@ class OrchestratorAgent(BaseModel):
             order_msg=order_msg,
             final_response=final_response
         )
-    def get_cash_report(self, as_of_date):
-        """Uses get_cash_balance to report current cash."""
-        return get_cash_balance(as_of_date)
-    def get_financial_report(self, as_of_date):
-        """Uses generate_financial_report to get a full report."""
-        return generate_financial_report(as_of_date)
 
 # --- END AGENT CLASSES ---
 
