@@ -588,21 +588,106 @@ def search_quote_history(search_terms: List[str], limit: int = 5) -> List[Dict]:
 ########################
 ########################
 
+# --- AGENT CLASSES ---
 
-# Set up and load your env parameters and instantiate your model.
+class InventoryAgent:
+    def check_stock(self, item_name, as_of_date):
+        stock_info = get_stock_level(item_name, as_of_date)
+        return int(stock_info['current_stock'].iloc[0])
+    def needs_restock(self, item_name, as_of_date):
+        stock = self.check_stock(item_name, as_of_date)
+        min_stock = pd.read_sql('SELECT min_stock_level FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
+        if not min_stock.empty:
+            return stock < int(min_stock['min_stock_level'].iloc[0])
+        return False
 
+class QuotingAgent:
+    def generate_quote(self, request, as_of_date):
+        # For simplicity, use a flat price lookup and apply a bulk discount if quantity > 500
+        item_name = request['item_name']
+        quantity = request['quantity']
+        price_row = pd.read_sql('SELECT unit_price FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
+        if price_row.empty:
+            return None, 'Item not found in inventory.'
+        unit_price = float(price_row['unit_price'].iloc[0])
+        total = unit_price * quantity
+        if quantity > 500:
+            total *= 0.9  # 10% bulk discount
+        explanation = f"Quoted {quantity} x {item_name} at ${unit_price:.2f} each."
+        if quantity > 500:
+            explanation += " Bulk discount applied."
+        return total, explanation
 
-"""Set up tools for your agents to use, these should be methods that combine the database functions above
- and apply criteria to them to ensure that the flow of the system is correct."""
+class OrderingAgent:
+    def place_order(self, item_name, quantity, order_date):
+        # Simulate supplier order and update transactions
+        price_row = pd.read_sql('SELECT unit_price FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
+        if price_row.empty:
+            return 'Item not found for ordering.'
+        unit_price = float(price_row['unit_price'].iloc[0])
+        total_price = unit_price * quantity
+        delivery_date = get_supplier_delivery_date(order_date, quantity)
+        create_transaction(item_name, 'stock_orders', quantity, total_price, delivery_date)
+        return f"Ordered {quantity} x {item_name} for delivery on {delivery_date}."
 
+class OrchestratorAgent:
+    def __init__(self):
+        self.inventory_agent = InventoryAgent()
+        self.quoting_agent = QuotingAgent()
+        self.ordering_agent = OrderingAgent()
+    def handle_request(self, request, as_of_date):
+        item_name = request['item_name']
+        quantity = request['quantity']
+        # 1. Check inventory
+        stock = self.inventory_agent.check_stock(item_name, as_of_date)
+        # 2. Restock if needed
+        if stock < quantity:
+            restock_qty = max(quantity - stock, 0)
+            order_msg = self.ordering_agent.place_order(item_name, restock_qty, as_of_date)
+            # After ordering, update stock
+            stock = self.inventory_agent.check_stock(item_name, as_of_date)
+        else:
+            order_msg = None
+        # 3. Generate quote
+        total, explanation = self.quoting_agent.generate_quote(request, as_of_date)
+        # 4. If enough stock, process sale
+        if stock >= quantity:
+            create_transaction(item_name, 'sales', quantity, total, as_of_date)
+            sale_msg = f"Processed sale of {quantity} x {item_name}."
+        else:
+            sale_msg = f"Insufficient stock for {item_name}. Only {stock} available."
+        # 5. Compile response
+        response = f"Quote: ${total:.2f}. {explanation} {sale_msg}"
+        if order_msg:
+            response += f" {order_msg}"
+        return response
 
-# Tools for inventory agent
+# --- END AGENT CLASSES ---
 
+# Helper to parse request from sample CSV row
 
-# Tools for quoting agent
-
-
-# Tools for ordering agent
+def parse_request(row):
+    # Try to extract item and quantity from the request string
+    # This is a simple heuristic; real implementation may need NLP
+    import re
+    req = row['request']
+    item = None
+    qty = None
+    # Try to find a number (quantity)
+    qty_match = re.search(r'(\d+)', req)
+    if qty_match:
+        qty = int(qty_match.group(1))
+    # Try to find an item name from inventory
+    inventory_items = pd.read_sql('SELECT item_name FROM inventory', db_engine)['item_name'].tolist()
+    for inv_item in inventory_items:
+        if inv_item.lower() in req.lower():
+            item = inv_item
+            break
+    if not item:
+        item = inventory_items[0]  # fallback
+    if not qty:
+        qty = 1  # fallback
+    return {'item_name': item, 'quantity': qty}
 
 
 # Set up your agents and create an orchestration agent that will manage them.
@@ -647,6 +732,7 @@ def run_test_scenarios():
     ############
     ############
 
+    orchestrator = OrchestratorAgent()
     results = []
     for idx, row in quote_requests_sample.iterrows():
         request_date = row["request_date"].strftime("%Y-%m-%d")
@@ -659,6 +745,7 @@ def run_test_scenarios():
 
         # Process request
         request_with_date = f"{row['request']} (Date of request: {request_date})"
+        parsed_request = parse_request(row)
 
         ############
         ############
@@ -668,7 +755,7 @@ def run_test_scenarios():
         ############
         ############
 
-        # response = call_your_multi_agent_system(request_with_date)
+        response = orchestrator.handle_request(parsed_request, request_date)
 
         # Update state
         report = generate_financial_report(request_date)
