@@ -8,6 +8,7 @@ from sqlalchemy.sql import text
 from datetime import datetime, timedelta
 from typing import Dict, List, Union
 from sqlalchemy import create_engine, Engine
+from pydantic import BaseModel, Field
 
 # Create an SQLite database
 db_engine = create_engine("sqlite:///munder_difflin.db")
@@ -588,9 +589,23 @@ def search_quote_history(search_terms: List[str], limit: int = 5) -> List[Dict]:
 ########################
 ########################
 
+# --- DATA MODELS ---
+
+class AgentRequest(BaseModel):
+    item_name: str
+    quantity: int
+    request_date: str
+
+class AgentResponse(BaseModel):
+    quote: float
+    explanation: str
+    sale_msg: str
+    order_msg: str | None = None
+    final_response: str
+
 # --- AGENT CLASSES ---
 
-class InventoryAgent:
+class InventoryAgent(BaseModel):
     def check_stock(self, item_name, as_of_date):
         stock_info = get_stock_level(item_name, as_of_date)
         return int(stock_info['current_stock'].iloc[0])
@@ -601,11 +616,10 @@ class InventoryAgent:
             return stock < int(min_stock['min_stock_level'].iloc[0])
         return False
 
-class QuotingAgent:
-    def generate_quote(self, request, as_of_date):
-        # For simplicity, use a flat price lookup and apply a bulk discount if quantity > 500
-        item_name = request['item_name']
-        quantity = request['quantity']
+class QuotingAgent(BaseModel):
+    def generate_quote(self, request: AgentRequest):
+        item_name = request.item_name
+        quantity = request.quantity
         price_row = pd.read_sql('SELECT unit_price FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
         if price_row.empty:
             return None, 'Item not found in inventory.'
@@ -618,9 +632,8 @@ class QuotingAgent:
             explanation += " Bulk discount applied."
         return total, explanation
 
-class OrderingAgent:
+class OrderingAgent(BaseModel):
     def place_order(self, item_name, quantity, order_date):
-        # Simulate supplier order and update transactions
         price_row = pd.read_sql('SELECT unit_price FROM inventory WHERE item_name = ?', db_engine, params=(item_name,))
         if price_row.empty:
             return 'Item not found for ordering.'
@@ -630,64 +643,60 @@ class OrderingAgent:
         create_transaction(item_name, 'stock_orders', quantity, total_price, delivery_date)
         return f"Ordered {quantity} x {item_name} for delivery on {delivery_date}."
 
-class OrchestratorAgent:
-    def __init__(self):
-        self.inventory_agent = InventoryAgent()
-        self.quoting_agent = QuotingAgent()
-        self.ordering_agent = OrderingAgent()
-    def handle_request(self, request, as_of_date):
-        item_name = request['item_name']
-        quantity = request['quantity']
-        # 1. Check inventory
+class OrchestratorAgent(BaseModel):
+    inventory_agent: InventoryAgent = Field(default_factory=InventoryAgent)
+    quoting_agent: QuotingAgent = Field(default_factory=QuotingAgent)
+    ordering_agent: OrderingAgent = Field(default_factory=OrderingAgent)
+    def handle_request(self, request: AgentRequest):
+        item_name = request.item_name
+        quantity = request.quantity
+        as_of_date = request.request_date
         stock = self.inventory_agent.check_stock(item_name, as_of_date)
-        # 2. Restock if needed
         if stock < quantity:
             restock_qty = max(quantity - stock, 0)
             order_msg = self.ordering_agent.place_order(item_name, restock_qty, as_of_date)
-            # After ordering, update stock
             stock = self.inventory_agent.check_stock(item_name, as_of_date)
         else:
             order_msg = None
-        # 3. Generate quote
-        total, explanation = self.quoting_agent.generate_quote(request, as_of_date)
-        # 4. If enough stock, process sale
+        total, explanation = self.quoting_agent.generate_quote(request)
         if stock >= quantity:
             create_transaction(item_name, 'sales', quantity, total, as_of_date)
             sale_msg = f"Processed sale of {quantity} x {item_name}."
         else:
             sale_msg = f"Insufficient stock for {item_name}. Only {stock} available."
-        # 5. Compile response
-        response = f"Quote: ${total:.2f}. {explanation} {sale_msg}"
+        final_response = f"Quote: ${total:.2f}. {explanation} {sale_msg}"
         if order_msg:
-            response += f" {order_msg}"
-        return response
+            final_response += f" {order_msg}"
+        return AgentResponse(
+            quote=total,
+            explanation=explanation,
+            sale_msg=sale_msg,
+            order_msg=order_msg,
+            final_response=final_response
+        )
 
 # --- END AGENT CLASSES ---
 
 # Helper to parse request from sample CSV row
 
 def parse_request(row):
-    # Try to extract item and quantity from the request string
-    # This is a simple heuristic; real implementation may need NLP
     import re
     req = row['request']
     item = None
     qty = None
-    # Try to find a number (quantity)
     qty_match = re.search(r'(\d+)', req)
     if qty_match:
         qty = int(qty_match.group(1))
-    # Try to find an item name from inventory
     inventory_items = pd.read_sql('SELECT item_name FROM inventory', db_engine)['item_name'].tolist()
     for inv_item in inventory_items:
         if inv_item.lower() in req.lower():
             item = inv_item
             break
     if not item:
-        item = inventory_items[0]  # fallback
+        item = inventory_items[0]
     if not qty:
-        qty = 1  # fallback
-    return {'item_name': item, 'quantity': qty}
+        qty = 1
+    return AgentRequest(item_name=item, quantity=qty, request_date=row['request_date'].strftime('%Y-%m-%d'))
 
 
 # Set up your agents and create an orchestration agent that will manage them.
@@ -755,7 +764,8 @@ def run_test_scenarios():
         ############
         ############
 
-        response = orchestrator.handle_request(parsed_request, request_date)
+        response_obj = orchestrator.handle_request(parsed_request)
+        response = response_obj.final_response
 
         # Update state
         report = generate_financial_report(request_date)
