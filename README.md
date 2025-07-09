@@ -95,38 +95,67 @@ Make sure to submit the following files:
 
 ## Agent Workflow Diagram
 
-The following diagram illustrates the architecture of the multi-agent system, including agent responsibilities and orchestration logic. The system is composed of four main agents, each with explicitly defined, non-overlapping responsibilities, and a clear orchestration/data flow:
+The following diagram illustrates the architecture of the multi-agent system, including agent responsibilities, orchestration logic, and the specific tools (helper functions) each agent uses. The system is composed of four main agents, each with explicitly defined, non-overlapping responsibilities, and a clear orchestration/data flow:
 
 - **Orchestrator Agent**: Receives customer requests, coordinates all other agents, and manages the workflow.
 - **Inventory Agent**: Checks current stock levels, triggers restocking if needed, and provides inventory status to the orchestrator.
 - **Quoting Agent**: Generates quotes based on customer requests, inventory status, and historical data.
 - **Ordering Agent**: Handles supplier orders and logistics when inventory is insufficient.
 
+### Agent-Tool Interaction Diagram
+
 ```mermaid
 graph TD
-    A["Customer Request"] --> B["Orchestrator Agent"]
-    B --> C["Inventory Agent"]
-    C -- "Stock Status" --> B
-    B --> D["Quoting Agent"]
-    D -- "Quote" --> B
-    B --> E["Ordering Agent"]
-    E -- "Order Confirmation" --> B
-    B -- "Final Response" --> F["Customer"]
+    subgraph Orchestrator Agent
+        OA["OrchestratorAgent"]
+    end
+    subgraph Inventory Agent
+        IA["InventoryAgent"]
+        IA1["get_stock_level()\n(Check stock)"]
+        IA2["needs_restock()\n(Check if restock needed)"]
+    end
+    subgraph Quoting Agent
+        QA["QuotingAgent"]
+        QA1["generate_quote()\n(Generate quote)"]
+    end
+    subgraph Ordering Agent
+        ORA["OrderingAgent"]
+        ORA1["place_order()\n(Place supplier order)"]
+        ORA2["get_supplier_delivery_date()\n(Estimate delivery)"]
+        ORA3["create_transaction()\n(Log order)"]
+    end
+    OA --> IA
+    OA --> QA
+    OA --> ORA
+    IA --> IA1
+    IA --> IA2
+    QA --> QA1
+    ORA --> ORA1
+    ORA --> ORA2
+    ORA --> ORA3
+    OA -- "Customer Request" --> OA
+    OA -- "Final Response" --> OA
 ```
 
-### Agent Responsibilities
+### Agent Tools and Purposes
 
-- **Orchestrator Agent**: Manages the workflow, delegates tasks, and aggregates responses.
-- **Inventory Agent**: Checks and reports inventory, triggers restocking if below threshold.
-- **Quoting Agent**: Calculates quotes using inventory and historical data, applies discounts.
-- **Ordering Agent**: Places supplier orders, estimates delivery, updates inventory.
+| Agent              | Tool/Function                | Purpose                                      |
+|--------------------|-----------------------------|----------------------------------------------|
+| Inventory Agent    | get_stock_level()           | Check current stock for an item              |
+| Inventory Agent    | needs_restock()             | Determine if restocking is needed            |
+| Quoting Agent      | generate_quote()            | Generate a quote for a customer request      |
+| Quoting Agent      | (uses get_stock_level)      | (Checks stock as part of quoting)            |
+| Ordering Agent     | place_order()               | Place an order with supplier                 |
+| Ordering Agent     | get_supplier_delivery_date()| Estimate delivery date for supplier order    |
+| Ordering Agent     | create_transaction()        | Log stock order transaction                  |
+| Orchestrator Agent | handle_request()            | Orchestrate workflow and agent interactions  |
 
 ### Orchestration Logic & Data Flow
 
 1. Orchestrator receives a customer request.
-2. Inventory Agent checks stock and reports to Orchestrator.
-3. If stock is low, Orchestrator triggers Ordering Agent to restock.
-4. Quoting Agent generates a quote using inventory and past data.
+2. Inventory Agent checks stock (get_stock_level) and reports to Orchestrator.
+3. If stock is low, Orchestrator triggers Ordering Agent to restock (place_order, get_supplier_delivery_date, create_transaction).
+4. Quoting Agent generates a quote (generate_quote, may use get_stock_level) using inventory and past data.
 5. Orchestrator compiles the final response and sends it to the customer.
 
-This architecture ensures clear, non-overlapping responsibilities and a transparent data flow between agents.
+This architecture ensures clear, non-overlapping responsibilities, explicit tool usage, and a transparent data flow between agents and their tools.
