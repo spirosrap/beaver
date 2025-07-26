@@ -1,0 +1,21 @@
+request_id,request_date,cash_balance,inventory_value,response
+1,2025-04-01,45099.7,4900.299999999999,Quote: $40.00. Quoted 200 x Glossy paper at $0.20 each. Processed sale of 200 x Glossy paper.
+2,2025-04-03,45149.7,4850.3,Quote: $50.00. Quoted 500 x Paper plates at $0.10 each. Processed sale of 500 x Paper plates.
+3,2025-04-04,45150.2,4849.8,Quote: $0.50. Quoted 10 x A4 paper at $0.05 each. Processed sale of 10 x A4 paper.
+4,2025-04-05,45225.2,4774.8,Quote: $75.00. Quoted 500 x Cardstock at $0.15 each. Processed sale of 500 x Cardstock.
+5,2025-04-05,45225.2,4774.8,Quote: $75.00. Quoted 500 x Cardstock at $0.15 each. Insufficient stock for Cardstock. Only 95 available. Ordered 405 x Cardstock for delivery on 2025-04-09.
+6,2025-04-06,45225.2,4774.8,Quote: $75.00. Quoted 500 x Cardstock at $0.15 each. Insufficient stock for Cardstock. Only 95 available. Ordered 405 x Cardstock for delivery on 2025-04-10.
+7,2025-04-07,45225.2,4774.8,Quote: $75.00. Quoted 500 x Cardstock at $0.15 each. Insufficient stock for Cardstock. Only 95 available. Ordered 405 x Cardstock for delivery on 2025-04-11.
+8,2025-04-07,45225.2,4774.8,Quote: $100.00. Quoted 500 x Glossy paper at $0.20 each. Insufficient stock for Glossy paper. Only 387 available. Ordered 113 x Glossy paper for delivery on 2025-04-11.
+9,2025-04-07,45265.2,4734.8,Quote: $40.00. Quoted 200 x Glossy paper at $0.20 each. Processed sale of 200 x Glossy paper.
+13,2025-04-08,45265.2,4734.8,Quote: $75.00. Quoted 500 x Cardstock at $0.15 each. Insufficient stock for Cardstock. Only 95 available. Ordered 405 x Cardstock for delivery on 2025-04-12.
+12,2025-04-08,45265.2,4734.8,Quote: $30.00. Quoted 200 x Cardstock at $0.15 each. Insufficient stock for Cardstock. Only 95 available. Ordered 105 x Cardstock for delivery on 2025-04-12.
+10,2025-04-08,45265.2,4734.8,Quote: $100.00. Quoted 500 x Glossy paper at $0.20 each. Insufficient stock for Glossy paper. Only 187 available. Ordered 313 x Glossy paper for delivery on 2025-04-12.
+11,2025-04-08,45265.2,4734.8,Quote: $100.00. Quoted 500 x Glossy paper at $0.20 each. Insufficient stock for Glossy paper. Only 187 available. Ordered 313 x Glossy paper for delivery on 2025-04-12.
+14,2025-04-09,45205.2,4794.8,Quote: $0.75. Quoted 5 x Cardstock at $0.15 each. Processed sale of 5 x Cardstock.
+15,2025-04-12,44860.4,5139.599999999999,Quote: $1.00. Quoted 10 x Colored paper at $0.10 each. Processed sale of 10 x Colored paper.
+16,2025-04-13,44860.4,5139.599999999999,Quote: $50.00. Quoted 500 x Paper plates at $0.10 each. Insufficient stock for Paper plates. Only 248 available. Ordered 252 x Paper plates for delivery on 2025-04-17.
+17,2025-04-14,44860.4,5139.599999999999,Quote: $90.00. Quoted 1000 x Paper plates at $0.10 each. Bulk discount applied. Insufficient stock for Paper plates. Only 248 available. Ordered 752 x Paper plates for delivery on 2025-04-18.
+18,2025-04-14,44935.4,5064.599999999999,Quote: $75.00. Quoted 500 x Cardstock at $0.15 each. Processed sale of 500 x Cardstock.
+19,2025-04-15,44935.4,5064.599999999999,Quote: $360.00. Quoted 2000 x Glossy paper at $0.20 each. Bulk discount applied. Insufficient stock for Glossy paper. Only 926 available. Ordered 1074 x Glossy paper for delivery on 2025-04-22.
+20,2025-04-17,44910.7,5089.3,Quote: $0.50. Quoted 5 x Paper plates at $0.10 each. Processed sale of 5 x Paper plates.
